@@ -7,7 +7,7 @@ FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
 COPY ["DynamicDnsClient/DynamicDnsClient.csproj", "DynamicDnsClient/"]
 RUN dotnet restore "DynamicDnsClient/DynamicDnsClient.csproj"
-COPY . .
+COPY /src/ .
 WORKDIR "/src/DynamicDnsClient"
 RUN dotnet build "DynamicDnsClient.csproj" -c Release -o /app/build
 
