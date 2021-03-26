@@ -5,7 +5,7 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
-COPY ["DynamicDnsClient/DynamicDnsClient.csproj", "DynamicDnsClient/"]
+COPY ["src/DynamicDnsClient/DynamicDnsClient.csproj", "DynamicDnsClient/"]
 RUN dotnet restore "DynamicDnsClient/DynamicDnsClient.csproj"
 COPY /src/ .
 WORKDIR "/src/DynamicDnsClient"
@@ -17,5 +17,5 @@ RUN dotnet publish "DynamicDnsClient.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY "DynamicDnsClient/appsettings.*json" .
+COPY "src/DynamicDnsClient/appsettings.*json" .
 ENTRYPOINT ["dotnet", "DynamicDnsClient.dll"]
