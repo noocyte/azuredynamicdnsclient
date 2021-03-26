@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DynamicDnsClient": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
