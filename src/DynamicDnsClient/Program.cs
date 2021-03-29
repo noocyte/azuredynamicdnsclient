@@ -1,9 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
-using System;
-using System.IO;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Threading.Tasks;
 
 namespace DynamicDnsClient
 {
@@ -11,14 +9,8 @@ namespace DynamicDnsClient
     {
         static async Task Main(string[] args)
         {
-            await Host.CreateDefaultBuilder(args)
-               .ConfigureHostConfiguration(config =>
-               {
-                   config.SetBasePath(Directory.GetCurrentDirectory())
-                       .AddJsonFile("appsettings.json")
-                       .AddJsonFile("appsettings.local.json", optional: true)
-                       .AddEnvironmentVariables();
-               })
+            await Host
+               .CreateDefaultBuilder(args)
                .ConfigureServices((del, collection) =>
                {
                    collection.Configure<DnsConfig>(del.Configuration.GetSection("Dns"));
@@ -28,6 +20,7 @@ namespace DynamicDnsClient
                        opt.CronExpression = "0 * * * *";
                        opt.TimeZoneInfo = TimeZoneInfo.Utc;
                    });
+                   collection.AddTransient<DnsUpdater>();
                })
                .RunConsoleAsync();
         }

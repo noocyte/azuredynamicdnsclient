@@ -1,7 +1,10 @@
 {
   "profiles": {
     "DynamicDnsClient": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "local"
+      }
     },
     "Docker": {
       "commandName": "Docker"
