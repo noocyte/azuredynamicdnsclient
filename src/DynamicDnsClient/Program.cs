@@ -2,6 +2,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DynamicDnsClient
 {
@@ -9,18 +11,25 @@ namespace DynamicDnsClient
     {
         static async Task Main(string[] args)
         {
-            var builder = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json")
-                .AddJsonFile("appsettings.local.json", optional: true)
-                .AddEnvironmentVariables();
-
-            var config = builder.Build();
-
-            var dnsConfig = config.GetSection("Dns").Get<DnsConfig>();
-            var securityConfig = config.GetSection("Security").Get<SecurityConfig>();
-            var updater = new DnsUpdater(securityConfig, dnsConfig);
-            await updater.UpdateDns();
+            await Host.CreateDefaultBuilder(args)
+               .ConfigureHostConfiguration(config =>
+               {
+                   config.SetBasePath(Directory.GetCurrentDirectory())
+                       .AddJsonFile("appsettings.json")
+                       .AddJsonFile("appsettings.local.json", optional: true)
+                       .AddEnvironmentVariables();
+               })
+               .ConfigureServices((del, collection) =>
+               {
+                   collection.Configure<DnsConfig>(del.Configuration.GetSection("Dns"));
+                   collection.Configure<SecurityConfig>(del.Configuration.GetSection("Security"));
+                   collection.AddCronJob<DnsUpdaterJob>(opt =>
+                   {
+                       opt.CronExpression = "0 * * * *";
+                       opt.TimeZoneInfo = TimeZoneInfo.Utc;
+                   });
+               })
+               .RunConsoleAsync();
         }
     }
 }
