@@ -21,8 +21,7 @@ namespace DynamicDnsClient
         public override async Task DoWork(CancellationToken cancellationToken)
         {
             _logger.LogInformation($"{DateTime.Now:hh:mm:ss} {nameof(DnsUpdaterJob)} is working.");
-            using var scope = _serviceProvider.CreateScope();
-            var svc = scope.ServiceProvider.GetRequiredService<DnsUpdater>();
+            var svc = _serviceProvider.GetRequiredService<DnsUpdater>();
             await svc.UpdateDns(cancellationToken);
         }
 

@@ -1,7 +1,9 @@
 ﻿using Microsoft.Azure.Management.Dns;
 using Microsoft.Azure.Management.Dns.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Rest.Azure.Authentication;
-using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,11 +14,14 @@ namespace DynamicDnsClient
     {
         private readonly SecurityConfig _securityConfig;
         private readonly DnsConfig _dnsConfig;
+        private readonly ILogger<DnsUpdater> _logger;
 
-        public DnsUpdater(SecurityConfig securityConfig, DnsConfig dnsConfig)
+        public DnsUpdater(IOptions<SecurityConfig> securityConfig, IOptions<DnsConfig> dnsConfig,
+            ILogger<DnsUpdater> logger)
         {
-            _securityConfig = securityConfig;
-            _dnsConfig = dnsConfig;
+            _securityConfig = securityConfig.Value;
+            _dnsConfig = dnsConfig.Value;
+            _logger = logger;
         }
 
         public async Task UpdateDns(CancellationToken cancellationToken)
@@ -31,13 +36,13 @@ namespace DynamicDnsClient
             var response = await client.GetAsync("http://icanhazip.com", cancellationToken);
             var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
             var myIp = responseString.Replace('\n', ' ').Replace(" ", "");
-            Console.WriteLine("My IP is: {0}", myIp);
+            _logger.LogInformation("My IP is: {0}", myIp);
 
             foreach (var recordSetName in _dnsConfig.RecordSetNames)
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    Console.WriteLine("Cancellation requested, aborting update");
+                    _logger.LogInformation("Cancellation requested, aborting update");
                     return;
                 }
 
@@ -46,6 +51,18 @@ namespace DynamicDnsClient
                     var recordSet = dnsClient.RecordSets.Get(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A);
 
                     // Add a new record to the local object.  Note that records in a record set must be unique/distinct
+
+                    // first we check if we need to update - no need to do it all the time
+                    var currentARecord = recordSet.ARecords.FirstOrDefault();
+                    if (currentARecord != null)
+                    {
+                        if (currentARecord.Ipv4Address.Equals(myIp))
+                        {
+                            _logger.LogInformation("Current IP already set, trying next");
+                            continue;
+                        }
+                    }
+
                     recordSet.ARecords.Clear();
                     recordSet.ARecords.Add(new ARecord(myIp));
 
@@ -53,11 +70,11 @@ namespace DynamicDnsClient
                     // Note: ETAG check specified, update will be rejected if the record set has changed in the meantime
                     recordSet = await dnsClient.RecordSets.CreateOrUpdateAsync(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A, recordSet, recordSet.Etag, cancellationToken: cancellationToken);
 
-                    Console.WriteLine($"success - {recordSetName}");
+                    _logger.LogInformation($"success - {recordSetName}");
                 }
                 catch (System.Exception e)
                 {
-                    Console.WriteLine($"failed - {recordSetName} - {e}");
+                    _logger.LogInformation($"failed - {recordSetName} - {e}");
                 }
             }
         }
