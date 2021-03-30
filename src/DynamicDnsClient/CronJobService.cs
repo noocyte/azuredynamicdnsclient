@@ -1,4 +1,5 @@
-﻿using Cronos;
+﻿// Code credit: https://github.com/dotnet-labs/ServiceWorkerCronJob
+using Cronos;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
