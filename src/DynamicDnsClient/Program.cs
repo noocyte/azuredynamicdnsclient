@@ -7,6 +7,8 @@ namespace DynamicDnsClient
 {
     class Program
     {
+        private const string _defaultCronExpression = "0 */2 * * *"; // every other hour
+
         static async Task Main(string[] args)
         {
             await Host
@@ -17,7 +19,12 @@ namespace DynamicDnsClient
                    collection.Configure<SecurityConfig>(del.Configuration.GetSection("Security"));
                    collection.AddCronJob<DnsUpdaterJob>(opt =>
                    {
-                       opt.CronExpression = "0 * * * *";
+                       var configCronExpression = del.Configuration.GetSection("CronExpression").Value;
+                       var cron = string.IsNullOrWhiteSpace(configCronExpression)
+                               ? _defaultCronExpression
+                               : configCronExpression;
+
+                       opt.CronExpression = cron;
                        opt.TimeZoneInfo = TimeZoneInfo.Utc;
                    });
                    collection.AddTransient<DnsUpdater>();
