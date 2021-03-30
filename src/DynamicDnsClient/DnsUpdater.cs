@@ -34,6 +34,7 @@ namespace DynamicDnsClient
 
             var client = new HttpClient();
             var response = await client.GetAsync("http://icanhazip.com", cancellationToken);
+            response.EnsureSuccessStatusCode();
             var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
             var myIp = responseString.Replace('\n', ' ').Replace(" ", "");
             _logger.LogInformation("My IP is: {0}", myIp);
@@ -58,7 +59,7 @@ namespace DynamicDnsClient
                     {
                         if (currentARecord.Ipv4Address.Equals(myIp))
                         {
-                            _logger.LogInformation("Current IP already set, trying next");
+                            _logger.LogInformation("Current IP already set, trying next recordset.");
                             continue;
                         }
                     }
@@ -70,11 +71,11 @@ namespace DynamicDnsClient
                     // Note: ETAG check specified, update will be rejected if the record set has changed in the meantime
                     recordSet = await dnsClient.RecordSets.CreateOrUpdateAsync(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A, recordSet, recordSet.Etag, cancellationToken: cancellationToken);
 
-                    _logger.LogInformation($"success - {recordSetName}");
+                    _logger.LogInformation($"Success - {recordSetName}");
                 }
                 catch (System.Exception e)
                 {
-                    _logger.LogInformation($"failed - {recordSetName} - {e}");
+                    _logger.LogError(e, $"Failed - {recordSetName}");
                 }
             }
         }

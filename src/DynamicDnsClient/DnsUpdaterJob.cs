@@ -21,8 +21,15 @@ namespace DynamicDnsClient
         public override async Task DoWork(CancellationToken cancellationToken)
         {
             _logger.LogInformation($"{DateTime.Now:hh:mm:ss} {nameof(DnsUpdaterJob)} is working.");
-            var svc = _serviceProvider.GetRequiredService<DnsUpdater>();
-            await svc.UpdateDns(cancellationToken);
+            try
+            {
+                var svc = _serviceProvider.GetRequiredService<DnsUpdater>();
+                await svc.UpdateDns(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{nameof(DnsUpdaterJob)} failed");
+            }
         }
 
         public override Task StartAsync(CancellationToken cancellationToken)
