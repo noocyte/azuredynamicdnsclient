@@ -36,8 +36,8 @@ namespace DynamicDnsClient
             var response = await client.GetAsync("http://icanhazip.com", cancellationToken);
             response.EnsureSuccessStatusCode();
             var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-            var myIp = responseString.Replace('\n', ' ').Replace(" ", "");
-            _logger.LogInformation("My IP is: {0}", myIp);
+            var currentIp = responseString.Replace('\n', ' ').Replace(" ", "");
+            _logger.LogInformation("My IP is: {0}", currentIp);
 
             foreach (var recordSetName in _dnsConfig.RecordSetNames)
             {
@@ -46,6 +46,8 @@ namespace DynamicDnsClient
                     _logger.LogInformation("Cancellation requested, aborting update");
                     return;
                 }
+
+                _logger.LogInformation($"Trying to update: {recordSetName}");
 
                 try
                 {
@@ -57,7 +59,7 @@ namespace DynamicDnsClient
                     var currentARecord = recordSet.ARecords.FirstOrDefault();
                     if (currentARecord != null)
                     {
-                        if (currentARecord.Ipv4Address.Equals(myIp))
+                        if (currentARecord.Ipv4Address.Equals(currentIp))
                         {
                             _logger.LogInformation("Current IP already set, trying next recordset.");
                             continue;
@@ -65,7 +67,7 @@ namespace DynamicDnsClient
                     }
 
                     recordSet.ARecords.Clear();
-                    recordSet.ARecords.Add(new ARecord(myIp));
+                    recordSet.ARecords.Add(new ARecord(currentIp));
 
                     // Update the record set in Azure DNS
                     // Note: ETAG check specified, update will be rejected if the record set has changed in the meantime
