@@ -19,6 +19,8 @@ namespace DynamicDnsClient.Firewall
             _serviceProvider = serviceProvider;
         }
 
+        protected override bool RunOnFirstStart => true;
+
         public override async Task DoWork(CancellationToken cancellationToken)
         {
             var svc = _serviceProvider.GetRequiredService<FirewallRulesUpdater>();
