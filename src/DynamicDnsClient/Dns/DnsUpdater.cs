@@ -11,7 +11,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Dns
 {
     public class DnsUpdater
     {

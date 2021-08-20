@@ -4,7 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Dns
 {
     public class DnsUpdaterJob : CronJobService
     {

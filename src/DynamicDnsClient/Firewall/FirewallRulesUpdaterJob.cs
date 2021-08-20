@@ -1,10 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DynamicDnsClient.Dns;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Firewall
 {
     public class FirewallRulesUpdaterJob : CronJobService
     {

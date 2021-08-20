@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Dns
 {
     public class DnsConfig
     {

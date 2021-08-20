@@ -9,7 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Firewall
 {
     public class FirewallRulesUpdater
     {
@@ -19,8 +19,8 @@ namespace DynamicDnsClient
         private readonly IGetCurrentIpAddress _ipAddressLookup;
 
         public FirewallRulesUpdater(
-            IOptions<SecurityConfig> securityConfig, 
-            IOptions<FirewallConfig> firewallConfig, 
+            IOptions<SecurityConfig> securityConfig,
+            IOptions<FirewallConfig> firewallConfig,
             IGetCurrentIpAddress ipAddressLookup,
             ILogger<FirewallRulesUpdater> logger)
         {

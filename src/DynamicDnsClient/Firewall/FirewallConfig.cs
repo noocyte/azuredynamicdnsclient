@@ -1,4 +1,4 @@
-﻿namespace DynamicDnsClient
+﻿namespace DynamicDnsClient.Firewall
 {
     public class FirewallConfig
     {
