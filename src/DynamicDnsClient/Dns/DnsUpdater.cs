@@ -1,43 +1,44 @@
 ﻿using Microsoft.Azure.Management.Dns;
 using Microsoft.Azure.Management.Dns.Models;
+using Microsoft.Azure.Management.Storage;
+using Microsoft.Azure.Management.Storage.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Rest.Azure.Authentication;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient.Dns
 {
     public class DnsUpdater
     {
         private readonly SecurityConfig _securityConfig;
         private readonly DnsConfig _dnsConfig;
         private readonly ILogger<DnsUpdater> _logger;
+        private readonly IGetCurrentIpAddress _ipAddressLookup;
 
-        public DnsUpdater(IOptions<SecurityConfig> securityConfig, IOptions<DnsConfig> dnsConfig,
+        public DnsUpdater(IOptions<SecurityConfig> securityConfig, IOptions<DnsConfig> dnsConfig, IGetCurrentIpAddress ipAddressLookup,
             ILogger<DnsUpdater> logger)
         {
             _securityConfig = securityConfig.Value;
             _dnsConfig = dnsConfig.Value;
+            _ipAddressLookup = ipAddressLookup;
             _logger = logger;
         }
 
         public async Task UpdateDns(CancellationToken cancellationToken)
         {
+
             var serviceCreds = await ApplicationTokenProvider.LoginSilentAsync(_securityConfig.TenantId, _securityConfig.ClientId, _securityConfig.ClientSecret);
             var dnsClient = new DnsManagementClient(serviceCreds)
             {
-                SubscriptionId = _dnsConfig.SubscriptionId
+                SubscriptionId = _securityConfig.SubscriptionId
             };
 
-            var client = new HttpClient();
-            var response = await client.GetAsync("http://icanhazip.com", cancellationToken);
-            response.EnsureSuccessStatusCode();
-            var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-            var currentIp = responseString.Replace('\n', ' ').Replace(" ", "");
-            _logger.LogInformation("My IP is: {0}", currentIp);
+            var currentIp = await _ipAddressLookup.GetCurrentIdAsync(cancellationToken);
 
             foreach (var recordSetName in _dnsConfig.RecordSetNames)
             {

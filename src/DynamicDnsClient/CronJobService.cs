@@ -25,6 +25,7 @@ namespace DynamicDnsClient
 
         public virtual async Task StartAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("{className} starts.", GetType().Name);
             await ScheduleJob(cancellationToken);
         }
 
@@ -33,14 +34,14 @@ namespace DynamicDnsClient
             var next = _expression.GetNextOccurrence(DateTimeOffset.Now, _timeZoneInfo);
             if (next.HasValue)
             {
-                _logger.LogInformation("Next occurance: {0}", next.Value);
+                _logger.LogInformation("Next occurance: {occurance}", next.Value);
                 var delay = next.Value - DateTimeOffset.Now;
                 if (delay.TotalMilliseconds <= 0)   // prevent non-positive values from being passed into Timer
                 {
                     await ScheduleJob(cancellationToken);
                 }
 
-                _logger.LogInformation("Delay set to: {0}", delay);
+                _logger.LogInformation("Delay set to: {delay}", delay);
 
                 _timer = new System.Timers.Timer(delay.TotalMilliseconds);
                 _timer.Elapsed += async (sender, args) =>
@@ -50,7 +51,15 @@ namespace DynamicDnsClient
 
                     if (!cancellationToken.IsCancellationRequested)
                     {
-                        await DoWork(cancellationToken);
+                        _logger.LogInformation("{currentDateTime} {className} is working.", DateTime.Now.ToString("s") , GetType().Name);
+                        try
+                        {
+                            await DoWork(cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "{className} failed", GetType().Name);
+                        }
                     }
 
                     if (!cancellationToken.IsCancellationRequested)
@@ -63,13 +72,11 @@ namespace DynamicDnsClient
             await Task.CompletedTask;
         }
 
-        public virtual async Task DoWork(CancellationToken cancellationToken)
-        {
-            await Task.Delay(5000, cancellationToken);  // do the work
-        }
+        public abstract Task DoWork(CancellationToken cancellationToken);
 
         public virtual async Task StopAsync(CancellationToken cancellationToken)
         {
+            _logger.LogInformation("{className} stopping.", GetType().Name);
             _timer?.Stop();
             await Task.CompletedTask;
         }
