@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace DynamicDnsClient
 {
-    public class DnsUpdaterJob : CronJobService
+    public class FirewallRulesUpdaterJob : CronJobService
     {
         private readonly IServiceProvider _serviceProvider;
 
-        public DnsUpdaterJob(
+        public FirewallRulesUpdaterJob(
             IScheduleConfig<DnsUpdaterJob> config,
             ILogger<DnsUpdaterJob> logger,
             IServiceProvider serviceProvider) : base(config.CronExpression, config.TimeZoneInfo, logger)
@@ -20,8 +20,8 @@ namespace DynamicDnsClient
 
         public override async Task DoWork(CancellationToken cancellationToken)
         {
-            var svc = _serviceProvider.GetRequiredService<DnsUpdater>();
-            await svc.UpdateDns(cancellationToken);
+            var svc = _serviceProvider.GetRequiredService<FirewallRulesUpdater>();
+            await svc.UpdateFirewall(cancellationToken);
         }
     }
 }
