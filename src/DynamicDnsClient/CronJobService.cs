@@ -16,6 +16,8 @@ namespace DynamicDnsClient
         private readonly TimeZoneInfo _timeZoneInfo;
         private readonly ILogger _logger;
 
+        protected virtual bool RunOnFirstStart => false;
+
         protected CronJobService(string cronExpression, TimeZoneInfo timeZoneInfo, ILogger logger)
         {
             _expression = CronExpression.Parse(cronExpression);
@@ -31,6 +33,12 @@ namespace DynamicDnsClient
 
         protected virtual async Task ScheduleJob(CancellationToken cancellationToken)
         {
+            if (RunOnFirstStart)
+            {
+                _logger.LogInformation("Job set to run at first start - will execute before setting up timers");
+                await DoWork(cancellationToken);
+            }
+
             var next = _expression.GetNextOccurrence(DateTimeOffset.Now, _timeZoneInfo);
             if (next.HasValue)
             {
