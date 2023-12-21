@@ -22,18 +22,18 @@ namespace DynamicDnsClient
                    collection.Configure<DnsConfig>(del.Configuration.GetSection("Dns"));
                    collection.Configure<SecurityConfig>(del.Configuration.GetSection("Security"));
 
-                   // dns
-                   collection.AddCronJob<DnsUpdaterJob>(opt =>
-                   {
-                       var configCronExpression = del.Configuration.GetSection("CronExpression").Value;
-                       var cron = string.IsNullOrWhiteSpace(configCronExpression)
-                               ? _defaultCronExpression
-                               : configCronExpression;
+                //    // dns
+                //    collection.AddCronJob<DnsUpdaterJob>(opt =>
+                //    {
+                //        var configCronExpression = del.Configuration.GetSection("CronExpression").Value;
+                //        var cron = string.IsNullOrWhiteSpace(configCronExpression)
+                //                ? _defaultCronExpression
+                //                : configCronExpression;
 
-                       opt.CronExpression = cron;
-                       opt.TimeZoneInfo = TimeZoneInfo.Utc;
-                   });
-                   collection.AddTransient<DnsUpdater>();
+                //        opt.CronExpression = cron;
+                //        opt.TimeZoneInfo = TimeZoneInfo.Utc;
+                //    });
+                //    collection.AddTransient<DnsUpdater>();
 
                    // firewall
                    collection.AddCronJob<FirewallRulesUpdaterJob>(opt =>
