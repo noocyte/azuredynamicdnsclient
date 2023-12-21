@@ -12,8 +12,8 @@ namespace DynamicDnsClient.Firewall
         private readonly IServiceProvider _serviceProvider;
 
         public FirewallRulesUpdaterJob(
-            IScheduleConfig<DnsUpdaterJob> config,
-            ILogger<DnsUpdaterJob> logger,
+            IScheduleConfig<FirewallRulesUpdaterJob> config,
+            ILogger<FirewallRulesUpdaterJob> logger,
             IServiceProvider serviceProvider) : base(config.CronExpression, config.TimeZoneInfo, logger)
         {
             _serviceProvider = serviceProvider;
