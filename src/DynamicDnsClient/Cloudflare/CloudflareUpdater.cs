@@ -40,6 +40,12 @@ internal class CloudflareUpdater(
             var appPolicies = await client.GetFromJsonAsync<Rootobject<Policy>>($"https://api.cloudflare.com/client/v4/accounts/{identifier}/access/apps/{app.uid}/policies", cancellationToken);
 
             var currentHomePolicy = appPolicies.result.Where(p => p.name.Equals("home", StringComparison.OrdinalIgnoreCase)).First();
+            if (currentHomePolicy.include[0].ip.ip.StartsWith(ipAddress))
+            {
+                logger.LogInformation("Home Policy for {appid} already has corrent IP address, no need to update", app.uid);
+                continue;
+            }
+
             var newHomePolicy = new UpdateInclude { ip = new Ip { ip = ipAddress } };
 
             var updatedPolicy = new UpdatePolicy
