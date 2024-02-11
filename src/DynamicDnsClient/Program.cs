@@ -1,57 +1,73 @@
-﻿using DynamicDnsClient.Dns;
+﻿using DynamicDnsClient.Cloudflare;
+using DynamicDnsClient.Dns;
 using DynamicDnsClient.Firewall;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient
+namespace DynamicDnsClient;
+
+class Program
 {
-    class Program
+    private const string _defaultCronExpression = "0 */2 * * *"; // every other hour
+
+    static async Task Main(string[] args)
     {
-        private const string _defaultCronExpression = "0 */2 * * *"; // every other hour
+        await Host
+           .CreateDefaultBuilder(args)
+           .ConfigureServices((ctx, collection) =>
+           {
+               // config
+               collection.Configure<FirewallConfig>(ctx.Configuration.GetSection("Firewall"));
+               collection.Configure<DnsConfig>(ctx.Configuration.GetSection("Dns"));
+               collection.Configure<SecurityConfig>(ctx.Configuration.GetSection("Security"));
+               collection.Configure<CloudflareConfig>(ctx.Configuration.GetSection("Cloudflare"));
 
-        static async Task Main(string[] args)
-        {
-            await Host
-               .CreateDefaultBuilder(args)
-               .ConfigureServices((del, collection) =>
+               // firewall
+               collection.AddCronJob<FirewallRulesUpdaterJob>(opt =>
                {
-                   // config
-                   collection.Configure<FirewallConfig>(del.Configuration.GetSection("Firewall"));
-                   collection.Configure<DnsConfig>(del.Configuration.GetSection("Dns"));
-                   collection.Configure<SecurityConfig>(del.Configuration.GetSection("Security"));
+                   var configCronExpression = ctx.Configuration.GetSection("CronExpression").Value;
+                   var cron = string.IsNullOrWhiteSpace(configCronExpression)
+                           ? _defaultCronExpression
+                           : configCronExpression;
 
-                //    // dns
-                //    collection.AddCronJob<DnsUpdaterJob>(opt =>
-                //    {
-                //        var configCronExpression = del.Configuration.GetSection("CronExpression").Value;
-                //        var cron = string.IsNullOrWhiteSpace(configCronExpression)
-                //                ? _defaultCronExpression
-                //                : configCronExpression;
+                   opt.CronExpression = cron;
+                   opt.TimeZoneInfo = TimeZoneInfo.Utc;
+               });
+               collection.AddTransient<FirewallRulesUpdater>();
 
-                //        opt.CronExpression = cron;
-                //        opt.TimeZoneInfo = TimeZoneInfo.Utc;
-                //    });
-                //    collection.AddTransient<DnsUpdater>();
+               // cloudflare
+               collection.AddCronJob<CloudflareUpdaterJob>(opt =>
+               {
+                   var configCronExpression = ctx.Configuration.GetSection("CronExpression").Value;
+                   var cron = string.IsNullOrWhiteSpace(configCronExpression)
+                           ? _defaultCronExpression
+                           : configCronExpression;
 
-                   // firewall
-                   collection.AddCronJob<FirewallRulesUpdaterJob>(opt =>
-                   {
-                       var configCronExpression = del.Configuration.GetSection("CronExpression").Value;
-                       var cron = string.IsNullOrWhiteSpace(configCronExpression)
-                               ? _defaultCronExpression
-                               : configCronExpression;
+                   opt.CronExpression = cron;
+                   opt.TimeZoneInfo = TimeZoneInfo.Utc;
+               });
+               collection.AddTransient<CloudflareUpdater>();
+               collection.AddHttpClient();
 
-                       opt.CronExpression = cron;
-                       opt.TimeZoneInfo = TimeZoneInfo.Utc;
-                   });
-                   collection.AddTransient<FirewallRulesUpdater>();
+               // services
+               collection.AddTransient<IGetCurrentIpAddress, ICanHazIp>();
+               
+               // uncomment to test random stuff locally... 
+               //collection.AddHostedService<Tester>();
+           })
+           .RunConsoleAsync();
+    }
+}
 
-                   // services
-                   collection.AddTransient<IGetCurrentIpAddress, ICanHazIp>();
-               })
-               .RunConsoleAsync();
-        }
+internal class Tester(IServiceScopeFactory factory) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var scope = factory.CreateScope();
+        var updater = scope.ServiceProvider.GetRequiredService<CloudflareUpdater>();
+        await updater.UpdateRules(stoppingToken);
     }
 }

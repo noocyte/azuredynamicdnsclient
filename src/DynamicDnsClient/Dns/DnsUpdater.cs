@@ -1,85 +1,74 @@
 ﻿using Microsoft.Azure.Management.Dns;
 using Microsoft.Azure.Management.Dns.Models;
 using Microsoft.Azure.Management.Storage;
-using Microsoft.Azure.Management.Storage.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Rest.Azure.Authentication;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DynamicDnsClient.Dns
+namespace DynamicDnsClient.Dns;
+
+public class DnsUpdater(
+    IOptions<SecurityConfig> securityConfig,
+    IOptions<DnsConfig> dnsConfig,
+    IGetCurrentIpAddress ipAddressLookup,
+    ILogger<DnsUpdater> logger)
 {
-    public class DnsUpdater
+    private readonly SecurityConfig _securityConfig = securityConfig.Value;
+    private readonly DnsConfig _dnsConfig = dnsConfig.Value;
+
+    public async Task UpdateDns(CancellationToken cancellationToken)
     {
-        private readonly SecurityConfig _securityConfig;
-        private readonly DnsConfig _dnsConfig;
-        private readonly ILogger<DnsUpdater> _logger;
-        private readonly IGetCurrentIpAddress _ipAddressLookup;
 
-        public DnsUpdater(IOptions<SecurityConfig> securityConfig, IOptions<DnsConfig> dnsConfig, IGetCurrentIpAddress ipAddressLookup,
-            ILogger<DnsUpdater> logger)
+        var serviceCreds = await ApplicationTokenProvider.LoginSilentAsync(_securityConfig.TenantId, _securityConfig.ClientId, _securityConfig.ClientSecret);
+        var dnsClient = new DnsManagementClient(serviceCreds)
         {
-            _securityConfig = securityConfig.Value;
-            _dnsConfig = dnsConfig.Value;
-            _ipAddressLookup = ipAddressLookup;
-            _logger = logger;
-        }
+            SubscriptionId = _securityConfig.SubscriptionId
+        };
 
-        public async Task UpdateDns(CancellationToken cancellationToken)
+        var currentIp = await ipAddressLookup.GetCurrentIdAsync(cancellationToken);
+
+        foreach (var recordSetName in _dnsConfig.RecordSetNames)
         {
-
-            var serviceCreds = await ApplicationTokenProvider.LoginSilentAsync(_securityConfig.TenantId, _securityConfig.ClientId, _securityConfig.ClientSecret);
-            var dnsClient = new DnsManagementClient(serviceCreds)
+            if (cancellationToken.IsCancellationRequested)
             {
-                SubscriptionId = _securityConfig.SubscriptionId
-            };
+                logger.LogInformation("Cancellation requested, aborting update");
+                return;
+            }
 
-            var currentIp = await _ipAddressLookup.GetCurrentIdAsync(cancellationToken);
+            logger.LogInformation($"Trying to update: {recordSetName}");
 
-            foreach (var recordSetName in _dnsConfig.RecordSetNames)
+            try
             {
-                if (cancellationToken.IsCancellationRequested)
+                var recordSet = dnsClient.RecordSets.Get(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A);
+
+                // Add a new record to the local object.  Note that records in a record set must be unique/distinct
+
+                // first we check if we need to update - no need to do it all the time
+                var currentARecord = recordSet.ARecords.FirstOrDefault();
+                if (currentARecord != null)
                 {
-                    _logger.LogInformation("Cancellation requested, aborting update");
-                    return;
-                }
-
-                _logger.LogInformation($"Trying to update: {recordSetName}");
-
-                try
-                {
-                    var recordSet = dnsClient.RecordSets.Get(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A);
-
-                    // Add a new record to the local object.  Note that records in a record set must be unique/distinct
-
-                    // first we check if we need to update - no need to do it all the time
-                    var currentARecord = recordSet.ARecords.FirstOrDefault();
-                    if (currentARecord != null)
+                    if (currentARecord.Ipv4Address.Equals(currentIp))
                     {
-                        if (currentARecord.Ipv4Address.Equals(currentIp))
-                        {
-                            _logger.LogInformation("Current IP already set, trying next recordset.");
-                            continue;
-                        }
+                        logger.LogInformation("Current IP already set, trying next recordset.");
+                        continue;
                     }
-
-                    recordSet.ARecords.Clear();
-                    recordSet.ARecords.Add(new ARecord(currentIp));
-
-                    // Update the record set in Azure DNS
-                    // Note: ETAG check specified, update will be rejected if the record set has changed in the meantime
-                    recordSet = await dnsClient.RecordSets.CreateOrUpdateAsync(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A, recordSet, recordSet.Etag, cancellationToken: cancellationToken);
-
-                    _logger.LogInformation($"Success - {recordSetName}");
                 }
-                catch (System.Exception e)
-                {
-                    _logger.LogError(e, $"Failed - {recordSetName}");
-                }
+
+                recordSet.ARecords.Clear();
+                recordSet.ARecords.Add(new ARecord(currentIp));
+
+                // Update the record set in Azure DNS
+                // Note: ETAG check specified, update will be rejected if the record set has changed in the meantime
+                recordSet = await dnsClient.RecordSets.CreateOrUpdateAsync(_dnsConfig.ResourceGroupName, _dnsConfig.ZoneName, recordSetName, RecordType.A, recordSet, recordSet.Etag, cancellationToken: cancellationToken);
+
+                logger.LogInformation($"Success - {recordSetName}");
+            }
+            catch (System.Exception e)
+            {
+                logger.LogError(e, $"Failed - {recordSetName}");
             }
         }
     }
